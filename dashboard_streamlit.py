@@ -6,6 +6,7 @@ Berdasarkan analisis_klaster_dtw.py (preprocessing, min-max, DTW, PAM, HDBSCAN s
 Instalasi : pip install streamlit pandas numpy scikit-learn dtaidistance plotly
 Jalankan  : streamlit run dashboard_streamlit.py
 """
+import glob
 import os
 import numpy as np
 import pandas as pd
@@ -112,16 +113,19 @@ div[role="radiogroup"] label>div:first-child{display:none}
 </style>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- sidebar
-ADMIN = st.query_params.get("admin") == "1" or not os.path.exists("Sales_transaction.csv")
-up, zs, win = None, 0.30, 5          # nilai bawaan (hasil tuning), dipakai pengunjung
-if ADMIN:                            # panel pengaturan hanya untuk admin: tambahkan ?admin=1 di akhir link
+ADMIN = st.query_params.get("admin") == "1"                 # mode admin: tambahkan ?admin=1 di akhir link
+DATA_FILE = next(iter(sorted(glob.glob("Sales_transaction*.csv")) or sorted(glob.glob("*.csv"))), None)
+NEED_UPLOAD = DATA_FILE is None                              # tidak ada CSV di folder -> perlu unggah
+up, zs, win = None, 0.30, 5                                  # nilai bawaan hasil tuning (dipakai pengunjung)
+if ADMIN or NEED_UPLOAD:
     with st.sidebar:
-        st.header("Pengaturan (admin)")
+        st.header("Pengaturan")
         up = st.file_uploader("Unggah data penjualan (CSV)", type="csv")
-        with st.expander("Parameter lanjutan"):
-            zs = st.slider("Batas minggu nol produk 'jarang'", 0.05, 0.6, 0.30, 0.05)
-            win = st.slider("Lebar pita DTW (minggu)", 1, 10, 5)
-else:                                # sembunyikan sidebar sepenuhnya bagi pengunjung
+        if ADMIN:
+            with st.expander("Parameter lanjutan"):
+                zs = st.slider("Batas minggu nol produk 'jarang'", 0.05, 0.6, 0.30, 0.05)
+                win = st.slider("Lebar pita DTW (minggu)", 1, 10, 5)
+else:                                                        # pengunjung: sidebar disembunyikan
     st.markdown("<style>[data-testid='stSidebar'],[data-testid='stSidebarCollapsedControl'],[data-testid='collapsedControl']{display:none}</style>",
                 unsafe_allow_html=True)
 
@@ -140,7 +144,7 @@ with cB:
 
 if up is None:
     try:
-        raw = load_data("Sales_transaction.csv")
+        raw = load_data(DATA_FILE)
     except Exception:
         st.info("Unggah file CSV (kolom Product_Code, W0..W51) di sidebar untuk memulai.")
         st.stop()
